@@ -1,74 +1,46 @@
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.*;
+import java.net.ServerSocket;
+import java.net.Socket;
 
-public class Server {
-    public static void main(String[] args) throws IOException {
-        
-        Socket S = null;
-        ServerSocket SS = null;
-        SS = new ServerSocket(6969);
+public class SERVER {
 
-        InputStreamReader ISR = null;
-        OutputStreamWriter OSW = null;
+    private ServerSocket serverSocket;
 
-        BufferedReader BR = null;
-        BufferedWriter BW = null;
+    public SERVER(ServerSocket serverSocket) {
+        this.serverSocket = serverSocket;
+    }
 
-        while (true) {
-            
-            try{
-
-                S = SS.accept();
-
-                ISR = new InputStreamReader(S.getInputStream());
-                OSW = new OutputStreamWriter(S.getOutputStream());
-            
-                BR = new BufferedReader(ISR);
-                BW = new BufferedWriter(OSW);
-
-                System.out.println("User Connected");
-
-                BW.write("You Are Now Connected To The Server!");
-                BW.newLine();
-                BW.flush();
-
-                while (true) {
-                    
-                    String msgFc = BR.readLine();
-
-                    System.out.println("Client:" + msgFc);
-
-                    BW.write(msgFc);
-                    BW.newLine();
-                    BW.flush();
-
-                    if (msgFc.equalsIgnoreCase("BYE")) {
-
-                        System.out.println("User Disconnect");
-
-                        break;
-                        
-                    }
-
-                    
-
-                }
-
-                S.close();
-                ISR.close();
-                OSW.close();
-                BR.close();
-                BW.close();
-
-
-            } catch (IOException e){
-                e.printStackTrace();
+    public void startServer() {
+        try {
+            while (!serverSocket.isClosed()) {
+                Socket socket = serverSocket.accept();
+                System.out.println("A new User has connected");
+                ClientHandler clientHandler = new ClientHandler(socket);
+                Thread thread = new Thread(clientHandler);
+                thread.start();
             }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
+    public void closeServerSocket() {
+        try {
+            if (serverSocket != null) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            ServerSocket serverSocket = new ServerSocket(1234);
+            SERVER server = new SERVER(serverSocket);
+            server.startServer();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
