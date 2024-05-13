@@ -4,73 +4,79 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Scanner;
 
 public class Client {
-    public static void main(String[] args) {
-        
-        Socket S = null;
+  
+    private Socket socket;
+    private BufferedReader bufferedReader;
+    private BufferedWriter bufferedWriter;
+    private String username;
 
-        InputStreamReader ISR = null;
-        OutputStreamWriter OSW = null;
+    public Client(Socket socket, String username) {
+        try {
+            this.socket = socket;
+            this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+            this.username = username;
+        } catch(IOException e) {
+            closeEverything(socket, bufferedReader, bufferedWriter);
+        }
+    }
 
-        BufferedReader BR = null;
-        BufferedWriter BW = null;
-
-        try{
-           
-            S = new Socket("localHost", 6969);
-
-            ISR = new InputStreamReader(S.getInputStream());
-            OSW = new OutputStreamWriter(S.getOutputStream());
-
-            BR = new BufferedReader(ISR);
-            BW = new BufferedWriter(OSW);
-
-            Scanner IN = new Scanner(System.in);
-
-            System.out.println("Server: " + BR.readLine());
-
-            while (true) {
-                
-                String msgts = IN.nextLine();
-
-                BW.write(msgts);
-                BW.newLine();
-                BW.flush();
-
-                System.out.println("Server Recieved:" + BR.readLine());
-                
-                if (msgts.equalsIgnoreCase("BYE")) {
-
-                    break;
-                    
-                }
-
+    public void sendMessage() {
+        try {
+            bufferedWriter.write(username);
+            bufferedWriter.newLine();
+            bufferedWriter.flush();
+            Scanner scanner = new Scanner(System.in);
+            while(socket.isConnected()) {
+                String messageToSend = scanner.nextLine();
+                bufferedWriter.write(username + ": " + messageToSend);
+                bufferedWriter.newLine();
+                bufferedWriter.flush();
             }
+        } catch(IOException e) {
+            closeEverything(socket, bufferedReader, bufferedWriter);
+        }
+    }
 
-            IN.close();
+    public void listenForMessage() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String msgFromGroupChat;
+                try {
+                    while(socket.isConnected()) {
+                        msgFromGroupChat = bufferedReader.readLine();
+                        System.out.println(msgFromGroupChat);
+                    }
+                } catch(IOException e) {
+                    closeEverything(socket, bufferedReader, bufferedWriter);
+                }
+            }
+        }).start();
+    }
 
+    private void closeEverything(Socket socket, BufferedReader bufferedReader, BufferedWriter bufferedWriter) {
+        try {
+            if (bufferedReader != null) bufferedReader.close();
+            if (bufferedWriter != null) bufferedWriter.close();
+            if (socket != null) socket.close();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-           try{
-            if (S != null)
-                S.close();
-            if (ISR != null)
-                ISR.close();
-            if (OSW != null)
-                OSW.close();
-            if (BR != null)
-                BR.close();
-            if (BW != null)
-                BW.close();
-           } catch (IOException e) {
-
-                e.printStackTrace();
-
-           }
-        }
-
+      }
+          
     }
+    public static void main(String[] args) throws UnknownHostException, IOException {
+      Scanner scanner = new Scanner(System.in);
+      System.out.println("Enter your username for the group chat:  ");
+      String username = scanner.nextLine();
+      Socket socket = new Socket("localHost", 1234);
+      Client client = new Client(socket, username);
+      client.listenForMessage();
+      client.sendMessage();
+    }
+    
 }
